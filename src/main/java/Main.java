@@ -10,6 +10,23 @@ public class Main {
     public static void main(String[] args) throws InterruptedException {
         List<Thread> threads = new ArrayList<>(MAX_ROUTES);
 
+        Thread freqlog = new Thread(() -> {
+            while (!Thread.interrupted()) {
+                synchronized (sizeToFreq) {
+                    try {
+                        sizeToFreq.wait();
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                    if (!sizeToFreq.isEmpty()) {
+                        int maxFreqKey = findMaxRegular();
+                        System.out.println(String.format("\n\nСамое частое количество повторений %d (встретилось %d раз)\n\n", maxFreqKey, sizeToFreq.get(maxFreqKey)));
+                    }
+                }
+            }
+        });
+        freqlog.start();
+
         for (int i = 0; i < MAX_ROUTES; i++) {
             Runnable task = () -> {
                 String route = generateRoute(LETTERS_GEN, ROUTE_LENGTH);
@@ -22,6 +39,7 @@ public class Main {
                     } else {
                         sizeToFreq.put(frequency, 1);
                     }
+                    sizeToFreq.notify();
                 }
             };
             Thread th = new Thread(task);
@@ -31,6 +49,8 @@ public class Main {
         for (Thread th : threads) {
             th.join();
         }
+        freqlog.interrupt();
+
         int maxFreqKey = findMaxRegular();
         System.out.println(String.format("Самое частое количество повторений %d (встретилось %d раз)", maxFreqKey, sizeToFreq.get(maxFreqKey)));
         System.out.println("Другие размеры:");
